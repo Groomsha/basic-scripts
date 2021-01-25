@@ -3,7 +3,14 @@
 """
 """
 
-import os 
-myCmd = os.popen('ls -la').read()
+import os as terminal
 
-print(myCmd)
+dir_backup = ""
+dir_logs = ""
+
+
+def returning_command(dir_loc, command):
+    return terminal.popen(command + " " + dir_loc).read()
+
+
+print(returning_command(dir_backup, "ls -la"))
