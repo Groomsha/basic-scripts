@@ -43,10 +43,10 @@ def virsh_command():
     """ Остонавливает виртуальную машину (VM) и собирает информацию
         для ее восстановления из Backup по надобности в будущем.
     """
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["работает"]:
+    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["running"]:
         terminal_os.popen("virsh save " + kvm_vm_name + " " + touch_folder_src + ".vmstate --running").read()
         logs_creation("Process Create: " + kvm_vm_name + ".vmstate --running ======>> Завершено без ошибок!")
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["выключен"]:
+    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
         terminal_os.popen("virsh dumpxml " + kvm_vm_name + " > " + touch_folder_src + ".xml") 
         terminal_os.popen("virsh domblkinfo " + kvm_vm_name + " " + touch_lvm_src + " > " + touch_folder_src + 
         "-raw_info" + " && " + "virsh vol-pool " + touch_lvm_src + " >> " + touch_folder_src + "-raw_info" + 
@@ -55,7 +55,7 @@ def virsh_command():
 
 
 def lvm_command(command, ratio = 2):
-    """ command: (1) Создать LVM_Snap. (2) Удалить LVM_Snap. (3) Информация по LVM_Snap
+    """ command: (1) Создать LVM_Snap. (2) Удалить LVM_Snap.
         ratio: Размер таблицы(буфера), на каждые 8Gb LVM c VM нужно 256M. ratio=2(16Gb LVM) 
     """
     if command == "create":
@@ -83,6 +83,7 @@ def archive_creation(compression = 3):
     """
     terminal_os.popen("dd if=" + touch_lvm_src + "_snap" + " | gzip -ck -" + str(compression) + " > " + touch_folder_src + ".gz").read()
     logs_creation("Process GZIP LVM Snapshot: для востоновления диска Virtual Machine ======>> Завершено без ошибок!")
+    logs_creation("Allocated to LVM Snapshot: Информация Allocated должно быть < 100% для работоспособности Snapshot!")
     logs_creation(terminal_os.popen("lvdisplay " + touch_lvm_src + "_snap").read())
     lvm_command("remove")
 
