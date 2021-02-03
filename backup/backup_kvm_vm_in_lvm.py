@@ -2,7 +2,7 @@
 
 """
 Project Name: 'basic-scripts'
-Version: 1.1a
+Version: 1.1b
 
 Description: Скрипт позволяет делать автоматические бекапы виртуальных машин 
 используя его в CRON для гипервизора KVM размещенных на блочном устройстве LVM
@@ -17,7 +17,7 @@ import os as terminal_os
 
 
 dir_logs = "/var/log/"
-kvm_vm_name, dev_lvm, dir_backup = path_os.argv[1:]
+kvm_vm_name, dev_lvm, size_snap, dir_backup = path_os.argv[1:]
 folder_backup = kvm_vm_name + "_" + time_os.strftime("%d.%m.%Y")
 touch_folder_src = dir_backup + folder_backup + "/" + kvm_vm_name
 
@@ -28,7 +28,7 @@ def main():
     logs_creation("Create Folder Backup VM: " + dir_backup + folder_backup)
 
     virsh_command()
-    lvm_command("create")
+    lvm_command("create", int(size_snap))
     virsh_restore()  
 
 
@@ -89,6 +89,7 @@ def archive_creation(compression = 3):
     logs_creation("Allocated to LVM Snapshot: Информация Allocated должно быть < 100% для работоспособности Snapshot!")
     logs_creation(terminal_os.popen("lvdisplay " + dev_lvm + "_snap").read())
     lvm_command("remove")
+    logs_creation("#"*120)
 
 
 main()

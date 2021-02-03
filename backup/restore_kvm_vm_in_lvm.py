@@ -13,11 +13,10 @@ https://www.linkedin.com/in/ihor-cheberiak/
 import time as time_os
 import os as terminal_os
 
+
 dev_lvm = ""
 kvm_vm_name = ""
 dir_logs = "/var/log/"
-
-touch_lvm_src = dev_lvm + kvm_vm_name
 
 
 def main():
@@ -51,7 +50,7 @@ def lvm_command(command, size):
     if command == "create":
         terminal_os.popen("lvcreate -n " + kvm_vm_name + "-L" + str(size) + "B " + dev_lvm).read()
     elif command == "remove":
-        terminal_os.popen("lvremove -f " + touch_lvm_src)
+        terminal_os.popen("lvremove -f " + dev_lvm)
 
 
 main()
