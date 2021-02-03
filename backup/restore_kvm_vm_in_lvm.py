@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 
 """
-version: 0.3
+Project Name: 'basic-scripts'
+Version: 0.3
+
+Description:
+
+Ihor Cheberiak (c) 2021
+https://www.linkedin.com/in/ihor-cheberiak/
 """
 
 import time as time_os

@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 
 """
-version: 1.0
+Project Name: 'basic-scripts'
+Version: 1.1a
 
-Скрипт позволяет делать автоматические бекапы виртуальных машин (VM)
-(через cron) в гипервизоре KVM размещенных на блочном устройстве LVM
+Description: Скрипт позволяет делать автоматические бекапы виртуальных машин 
+используя его в CRON для гипервизора KVM размещенных на блочном устройстве LVM
+
+Ihor Cheberiak (c) 2021
+https://www.linkedin.com/in/ihor-cheberiak/
 """
 
 import sys as path_os
 import time as time_os
 import os as terminal_os
 
-kvm_vm_name, kvm_vm_os, dir_backup, dev_lvm = path_os.argv[1:]
-dir_logs = "/var/log/"
 
-touch_lvm_src = dev_lvm + kvm_vm_name
-folder_backup = kvm_vm_name + "-" + kvm_vm_os + "_" + time_os.strftime("%d.%m.%Y")
-touch_folder_src = dir_backup + folder_backup + "/" + kvm_vm_name + "-" + kvm_vm_os
+dir_logs = "/var/log/"
+kvm_vm_name, dev_lvm, dir_backup = path_os.argv[1:]
+folder_backup = kvm_vm_name + "_" + time_os.strftime("%d.%m.%Y")
+touch_folder_src = dir_backup + folder_backup + "/" + kvm_vm_name
 
 
 def main():
@@ -48,9 +51,9 @@ def virsh_command():
         logs_creation("Process Create: " + kvm_vm_name + ".vmstate --running ======>> Завершено без ошибок!")
     if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
         terminal_os.popen("virsh dumpxml " + kvm_vm_name + " > " + touch_folder_src + ".xml") 
-        terminal_os.popen("virsh domblkinfo " + kvm_vm_name + " " + touch_lvm_src + " > " + touch_folder_src + 
-        "-raw_info" + " && " + "virsh vol-pool " + touch_lvm_src + " >> " + touch_folder_src + "-raw_info" + 
-        " && " + "echo " + touch_lvm_src + " >> " + touch_folder_src + "-raw_info")
+        terminal_os.popen("virsh domblkinfo " + kvm_vm_name + " " + dev_lvm + " > " + touch_folder_src + 
+        "-raw_info" + " && " + "virsh vol-pool " + dev_lvm + " >> " + touch_folder_src + "-raw_info" + 
+        " && " + "echo " + dev_lvm + " >> " + touch_folder_src + "-raw_info")
         logs_creation("Process Create: вспомагательных файлов для востоновления ======>> Завершено без ошибок!")
 
 
@@ -59,16 +62,16 @@ def lvm_command(command, ratio = 2):
         ratio: Размер таблицы(буфера), на каждые 8Gb LVM c VM нужно 256M. ratio=2(16Gb LVM) 
     """
     if command == "create":
-        terminal_os.popen("lvcreate -s -n " + touch_lvm_src + "_snap -L" + str(ratio*256) + "M " + touch_lvm_src).read()
-        logs_creation("LVM Snapshot Create: " + touch_lvm_src + "_snap Size: " + str(ratio*256) + "M Target:" + touch_lvm_src)
+        terminal_os.popen("lvcreate -s -n " + dev_lvm + "_snap -L" + str(ratio*256) + "M " + dev_lvm).read()
+        logs_creation("LVM Snapshot Create: " + dev_lvm + "_snap Size: " + str(ratio*256) + "M Target:" + dev_lvm)
     elif command == "remove":
-        terminal_os.popen("lvremove -f " + touch_lvm_src + "_snap")
-        logs_creation("LVM Snapshot Remove " + touch_lvm_src + "_snap")
+        terminal_os.popen("lvremove -f " + dev_lvm + "_snap")
+        logs_creation("LVM Snapshot Remove " + dev_lvm + "_snap")
 
 
 def virsh_restore():
     """ Запускает виртуальную машину (VM) из сохраненного ранее состояния """
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["выключен"]:
+    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
         logs_creation("Process Restore Virtual Machine: Начат процесс восстановления состояния вертуальной машины!")
         terminal_os.popen("virsh restore " + touch_folder_src + ".vmstate")
         archive_creation()
@@ -81,10 +84,10 @@ def archive_creation(compression = 3):
     """ compression: Степень сжатия .gz файла от 1 до 9. Чем выше степень,
         тем больше нужно мощностей процессора и времени на создание архива.
     """
-    terminal_os.popen("dd if=" + touch_lvm_src + "_snap" + " | gzip -ck -" + str(compression) + " > " + touch_folder_src + ".gz").read()
+    terminal_os.popen("dd if=" + dev_lvm + "_snap" + " | gzip -ck -" + str(compression) + " > " + touch_folder_src + ".gz").read()
     logs_creation("Process GZIP LVM Snapshot: для востоновления диска Virtual Machine ======>> Завершено без ошибок!")
     logs_creation("Allocated to LVM Snapshot: Информация Allocated должно быть < 100% для работоспособности Snapshot!")
-    logs_creation(terminal_os.popen("lvdisplay " + touch_lvm_src + "_snap").read())
+    logs_creation(terminal_os.popen("lvdisplay " + dev_lvm + "_snap").read())
     lvm_command("remove")
 
 
