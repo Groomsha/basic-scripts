@@ -24,8 +24,8 @@ touch_folder_src = dir_backup + folder_backup + "/" + kvm_vm_name
 
 
 def main():
-    performance_shell("mkdir -p " + dir_backup + folder_backup + "/")
-    logs_creation(["Start Process Backup Virtual Machine: " + kvm_vm_name + " " + + dir_backup + folder_backup])
+    performance_shell("mkdir -p {}{}/".format(dir_backup, folder_backup))
+    logs_creation(["Start Process Backup Virtual Machine: {} {}{}".format(kvm_vm_name, dir_backup, folder_backup)])
     
     virsh_command()
     lvm_command("create", int(size_snap))
@@ -36,12 +36,12 @@ def main():
 
 
 def logs_creation(messages):
-    if terminal_os.path.isfile(dir_logs + kvm_vm_name + ".log"):
+    if terminal_os.path.isfile("{}{}.log".format(dir_logs, kvm_vm_name)):
         access_type = "a"
     else:
         access_type = "w"
     
-    with open(dir_logs + kvm_vm_name + ".log", access_type) as log:
+    with open("{}{}.log".format(dir_logs, kvm_vm_name), access_type) as log:
         for message in messages:
             log.write("\n" + time_os.ctime() + " " + message)
 
@@ -64,38 +64,36 @@ def virsh_command():
         для ее восстановления из Backup по надобности в будущем.
     """
     if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["running"]:
-        performance_shell("virsh save " + kvm_vm_name + " " + touch_folder_src + ".vmstate --running")
+        performance_shell("virsh save {} {}.vmstate --running".format(kvm_vm_name, touch_folder_src))
     if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
-        performance_shell("virsh dumpxml " + kvm_vm_name + " > " + touch_folder_src + ".xml")
-        performance_shell("virsh domblkinfo " + kvm_vm_name + " " + dev_lvm + " > " + touch_folder_src + 
-        "-raw_info" + " && " + "virsh vol-pool " + dev_lvm + " >> " + touch_folder_src + "-raw_info" + 
-        " && " + "echo " + dev_lvm + " >> " + touch_folder_src + "-raw_info")
+        performance_shell("virsh dumpxml {} > {}.xml".format(kvm_vm_name, touch_folder_src))
+        performance_shell("virsh domblkinfo {} {} > {}-raw_info && virsh vol-pool {} >> {}-raw_info && echo {} >> {}-raw_info".format(kvm_vm_name, dev_lvm, touch_folder_src, dev_lvm, touch_folder_src, dev_lvm, touch_folder_src))
     
-    logs_creation(["Process Virsh Create: " + kvm_vm_name + ".vmstate --running and creation of auxiliary files VM!"])
+    logs_creation(["Process Virsh Create: {}.vmstate --running and creation of auxiliary files VM!".format(kvm_vm_name)])
 
 
 def lvm_command(command, ratio = 2):
-    """ command: (1) Создать LVM_Snap. (2) Удалить LVM_Snap.
+    """ command: (create) Создать LVM_Snap. (remove) Удалить LVM_Snap.
         ratio: Размер таблицы(буфера), на каждые 8Gb LVM c VM нужно 256M.
         ratio=2 это 512M Snapshot для VM размером меньше чем 16Gb
     """
     if command == "create":
-        performance_shell("sudo lvcreate -s -n " + dev_lvm + "_snap -L" + str(ratio*256) + "M " + dev_lvm)
-        logs_creation(["LVM Snapshot Create: " + dev_lvm + "_snap Size: " + str(ratio*256) + "M Target:" + dev_lvm])
+        performance_shell("sudo lvcreate -s -n {}_snap -L{}M {}".format(dev_lvm, str(ratio*256), dev_lvm))
+        logs_creation(["LVM Snapshot Create: {}_snap Size: {}M Target: {}".format(dev_lvm, str(ratio*256), dev_lvm)])
     elif command == "remove":
-        performance_shell("sudo lvremove -f " + dev_lvm + "_snap")
-        logs_creation(["LVM Snapshot Remove " + dev_lvm + "_snap"])
+        performance_shell("sudo lvremove -f {}_snap".format(dev_lvm))
+        logs_creation(["LVM Snapshot Remove {}_snap".format(dev_lvm)])
 
 
 def virsh_restore():
     """ Запускает виртуальную машину (VM) из сохраненного ранее состояния """
     if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
-        logs_creation(["Start Process Restore Virtual Machine: "  + kvm_vm_name + ".vmstate --running"])
-        performance_shell("virsh restore " + touch_folder_src + ".vmstate")
+        logs_creation(["Start Process Restore Virtual Machine: {}.vmstate --running".format(kvm_vm_name)])
+        performance_shell("virsh restore {}.vmstate".format(touch_folder_src))
         archive_creation()
     else:
         logs_creation(["Error Process Restore VM: The VM is not turned off, removing the folder with oriental information!"])
-        performance_shell("rm -r " + dir_backup + folder_backup + "/")
+        performance_shell("rm -r {}{}/".format(dir_backup, folder_backup))
         lvm_command("remove")
         terminal_os._exit(1)
 
@@ -105,10 +103,10 @@ def archive_creation(compression = 3):
         тем больше нужно мощностей процессора и времени на создание архива.
     """
     logs_creation(["Process GZIP LVM Snapshot: For disk recovery Virtual Machine " + kvm_vm_name])
-    performance_shell("dd if=" + dev_lvm + "_snap" + " | gzip -ck -" + str(compression) + " > " + touch_folder_src + ".gz")
+    performance_shell("dd if={}_snap | gzip -ck -{} > {}.gz".format(dev_lvm, str(compression), touch_folder_src))
 
     logs_creation(["Allocated to LVM Snapshot: Allocated should be < 100% for performance Snapshot!"])
-    performance_shell("sudo lvdisplay " + dev_lvm + "_snap")
+    performance_shell("sudo lvdisplay {}_snap".format(dev_lvm))
 
     lvm_command("remove")
 

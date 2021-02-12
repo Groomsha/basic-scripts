@@ -2,7 +2,7 @@
 
 """
 Project Name: 'basic-scripts'
-Version: 0.4
+Version: 0.9
 
 Description:
 
@@ -15,23 +15,38 @@ import os as terminal_os
 import subprocess as shell
 
 
-dev_lvm = ""
+dir_backup = ""
 kvm_vm_name = ""
 dir_logs = "/var/log/"
 
 
 def main():
-    virsh_command()
-    lvm_command("remove")
+    dir_backup = input("Enter the path to the directory with the backup of the desired VM: ")
+    kvm_vm_name = str(dir_backup.split("/")[-2])[:-11]
+
+    with open("{}{}-raw_info".format(dir_backup, kvm_vm_name)) as backup:
+        temp_str = ""
+        for line in backup:
+            temp_str += line
+
+    *rest, size_lvm, _, dev_lvm = temp_str.split()
+
+    virsh_command("destroy")
+    lvm_command("remove", dev_lvm)
+    virsh_command("define")
+    lvm_command("create", dev_lvm, size_lvm)
+
+    logs_creation(["#"*100])
+    terminal_os._exit(0)
 
 
 def logs_creation(messages):
-    if terminal_os.path.isfile(dir_logs + kvm_vm_name + ".log"):
+    if terminal_os.path.isfile("{}{}.log".format(dir_logs, kvm_vm_name)):
         access_type = "a"
     else:
         access_type = "w"
     
-    with open(dir_logs + kvm_vm_name + ".log", access_type) as log:
+    with open("{}{}.log".format(dir_logs, kvm_vm_name), access_type) as log:
         for message in messages:
             log.write("\n" + time_os.ctime() + " " + message)
 
@@ -49,23 +64,31 @@ def performance_shell(command, wait_shell = True):
         logs_creation(str(errors).splitlines())
 
 
-def virsh_command():
+def virsh_command(command):
     """ 
     """
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["running"]:
-        performance_shell("virsh destroy " + kvm_vm_name)
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
-        performance_shell("virsh domblklist " + kvm_vm_name)
+    if command == "destroy":
+        performance_shell("virsh destroy {}".format(kvm_vm_name))
+    elif command == "define":
+        performance_shell("virsh define {}{}.xml".format(dir_backup, kvm_vm_name))
+    elif command == "restore":
+        performance_shell("virsh restore {}{}.vmstate".format(dir_backup, kvm_vm_name))
 
 
-def lvm_command(command, size):
-    """ command: (1) Создать блочное устройство LVM. (2) Удалить блочное устройство LVM_Snap.
+def lvm_command(command, lvm, size = None):
+    """ command: (create) Создать блочное устройство LVM. (remove) Удалить блочное устройство LVM.
         size: Размер блочного устройства для Virtual Machine в 'Байтах'. Из файла -raw_info. 
     """
     if command == "create":
-        performance_shell("sudo lvcreate -n " + kvm_vm_name + " -L" + str(size) + "B " + dev_lvm)
+        performance_shell("sudo lvcreate -n {} -L{}B {}".format(kvm_vm_name, str(size), lvm.split("/")[-2]))
+        archive_creation(lvm)
     elif command == "remove":
-        performance_shell("sudo lvremove -f " + dev_lvm)
+        performance_shell("sudo lvremove -f {}".format(lvm))
+
+
+def archive_creation(lvm):
+    performance_shell("gunzip -ck {}{}.gz > {}".format(dir_backup, kvm_vm_name, lvm))
+    virsh_command("restore")
 
 
 if __name__ == '__main__':
