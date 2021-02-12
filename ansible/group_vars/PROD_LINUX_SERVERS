@@ -1,0 +1,3 @@
+---
+ansibal_user : user_name
+ansible_port : 22
