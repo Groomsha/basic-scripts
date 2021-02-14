@@ -77,9 +77,9 @@ def virsh_command():
     """ Остонавливает виртуальную машину (VM) и собирает информацию
         для ее восстановления из Backup по надобности в будущем.
     """
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["работает"] :
+    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["running"] :
         performance_shell("virsh save {0} {1}.vmstate --running".format(kvm_vm_name, touch_folder_src))
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["работает"]:
+    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
         performance_shell("virsh dumpxml {0} > {1}.xml".format(kvm_vm_name, touch_folder_src))
         performance_shell("virsh domblkinfo {0} {1} > {2}-raw_info && virsh vol-pool {1} >> {2}-raw_info && echo {1} >> {2}-raw_info".format(kvm_vm_name, dev_lvm, touch_folder_src))
     
@@ -101,7 +101,7 @@ def lvm_command(command, ratio = 2):
 
 def virsh_restore():
     """ Запускает виртуальную машину (VM) из сохраненного ранее состояния """
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["работает"]:
+    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
         logs_creation(["Start Process Restore Virtual Machine: {0}.vmstate --running".format(kvm_vm_name)])
         performance_shell("virsh restore {0}.vmstate".format(touch_folder_src))
         archive_creation()
