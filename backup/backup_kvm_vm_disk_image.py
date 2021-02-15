@@ -2,9 +2,10 @@
 
 """
 Project Name: 'basic-scripts'
-Version: 0.1
+Version: 1.0
 
-Description:
+Description: Скрипт позволяет делать автоматические бекапы виртуальных машин 
+используя его в CRON для гипервизора KVM размещенных в формате дискового образа.
 
 Ihor Cheberiak (c) 2021
 https://www.linkedin.com/in/ihor-cheberiak/
@@ -16,9 +17,10 @@ import argparse as parser
 import subprocess as shell
 
 
-help_parser = parser.ArgumentParser(description="")
+help_parser = parser.ArgumentParser(description="KVM backup of Virtual Machines on the Disk Image (img, raw, qcow2)")
 
 help_parser.add_argument("vm_name", type=str, help="Example: srv4prod-vm")
+help_parser.add_argument("img_dev", type=str,  help="Example: /kvm/image/prod-vm.img | .raw | .qcow2")
 help_parser.add_argument("bakup_folder", type=str, help="Example: /var/backup/prod-vm/")
 
 args_parser = help_parser.parse_args()
@@ -26,6 +28,7 @@ print(args_parser)
 
 dir_logs = "/var/log/"
 kvm_vm_name = args_parser.vm_name
+img_dir = args_parser.img_dev
 dir_backup = args_parser.bakup_folder
 
 folder_backup = kvm_vm_name + "_" + time_os.strftime("%d.%m.%Y")
@@ -33,6 +36,9 @@ touch_folder_src = dir_backup + folder_backup + "/" + kvm_vm_name
 
 
 def main():
+    virsh_command()
+    archive_creation()
+
     logs_creation(["#"*120])
     terminal_os._exit(0)
 
@@ -61,37 +67,30 @@ def performance_shell(command, wait_shell = True):
         logs_creation(str(errors.strip()).splitlines())
 
 
-def virsh_command():
+def virsh_command(command = None):
     """ Остонавливает виртуальную машину (VM) и собирает информацию
         для ее восстановления из Backup по надобности в будущем.
     """
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["работает"] :
-        performance_shell("virsh save {0} {1}.vmstate --running".format(kvm_vm_name, touch_folder_src))
-        #virsh shutdown srv
-    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["работает"]:
+    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() == ["running"] :
+        performance_shell("virsh shutdown {0}".format(kvm_vm_name))
+    if terminal_os.popen("virsh domstate " + kvm_vm_name).read().split() != ["running"]:
         performance_shell("virsh dumpxml {0} > {1}.xml".format(kvm_vm_name, touch_folder_src))
-        #virsh dumpxml srv > /var/kvm/vm-backup/srv_28.10.2019/kvm-srv.xml
-        performance_shell("virsh domblkinfo {0} {1} > {2}-raw_info && virsh vol-pool {1} >> {2}-raw_info && echo {1} >> {2}-raw_info".format(kvm_vm_name, dev_lvm, touch_folder_src))
-        #virsh domblkinfo srv /var/kvm/vm-sources/_srv.img > /var/kvm/vm-backup/srv_28.10.2019/kvm-disk
-        #virsh vol-pool /var/kvm/vm-sources/_srv.img >> /var/kvm/vm-backup/srv_28.10.2019/kvm-disk
-        #echo "/var/kvm/vm-sources/_srv.img" >> /var/kvm/vm-backup/srv_28.10.2019/kvm-disk
+        performance_shell("virsh domblkinfo {0} {1} > {2}-{3}_info && virsh vol-pool {1} >> {2}-{3}_info && echo {1} >> {2}-{3}_info".format(kvm_vm_name, img_dir, touch_folder_src, img_dir[img_dir.find(".")-1:])) 
     
-    #virsh domstate srv		>>>>>>>>>> shut off
-    #virsh destroy srv		>>>>>>>>>> shut off
+    logs_creation(["Process Virsh: Shutdown VM and creation of auxiliary files VM!".format(kvm_vm_name)])
 
-    #virsh start srv
-    #virsh domstate srv		>>>>>>>>>> running
-
-    #logs_creation(["Process Virsh Create: {0}.vmstate --running and creation of auxiliary files VM!".format(kvm_vm_name)])
+    if command == "start":
+        performance_shell("virsh start {0}".format(kvm_vm_name))
+        logs_creation(["Process Virsh: Start VM {0} - Running".format(kvm_vm_name)])
 
 
 def archive_creation(compression = 3):
     """ compression: Степень сжатия .gz файла от 1 до 9. Чем выше степень,
         тем больше нужно мощностей процессора и времени на создание архива.
     """
-    #logs_creation(["Process GZIP LVM Snapshot: For disk recovery Virtual Machine " + kvm_vm_name])
-    #dd if=/var/kvm/vm-sources/_srv.img | gzip -kc -3 > /var/kvm/vm-backup/srv_28.10.2019/kvm.img.gz
-    performance_shell("dd if={0}_snap | gzip -ck -{1} > {2}.gz".format(dev_lvm, str(compression), touch_folder_src))
+    logs_creation(["Process GZIP Disk Image: For disk recovery Virtual Machine " + kvm_vm_name])
+    performance_shell("dd if={0} | gzip -kc -{1} > {2}{3}.gz".format(img_dir, str(compression), touch_folder_src, img_dir[img_dir.find("."):]))
+    virsh_command("start")
 
 
 if __name__ == '__main__':
