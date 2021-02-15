@@ -2,7 +2,7 @@
 
 """
 Project Name: 'basic-scripts'
-Version: 1.0
+Version: 1.0a
 
 Description: Скрипт позволяет востоновить бекапы виртуальных 
 машин для гипервизора KVM размещенных на блочном устройстве LVM.
@@ -17,13 +17,16 @@ import argparse as parser
 import subprocess as shell
 
 help_parser = parser.ArgumentParser(description="KVM restoring of Virtual Machines on the LVM block device")
-help_parser.add_argument("-bakup", default=None, type=str, help="Example: /var/backup/prod-vm/srv-test-vm_01.01.2077/")
+help_parser.add_argument("-backup", default=None, type=str, help="Example: /var/backup/prod-vm/srv-test-vm_01.01.2077/")
 
 args_parser = help_parser.parse_args()
-dir_backup = args_parser.bakup
+dir_backup = args_parser.backup
 print(args_parser)
 
-dir_backup = input("Enter the path to the directory with the backup of the desired VM: ")
+if dir_backup == None:
+    dir_backup = input("Enter the path to the directory with the backup of the desired VM: ")
+
+
 kvm_vm_name = str(dir_backup.split("/")[-2])[:-11]
 dir_logs = "/var/log/"
 
